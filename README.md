@@ -58,7 +58,7 @@ sudo apt install cmake gcc g++ libbluetooth-dev libpulse-dev libssl-dev libsyste
 ### Install the extension
 
 ```
-git clone https://github.com/steam3d/MagicPodsGnome.git
+git clone https://github.com/magnavoid/MagicPodsGnome.git
 cd MagicPodsGnome
 cp /path/to/MagicPodsCore/build/magicpodscore bin/
 bash install.sh
