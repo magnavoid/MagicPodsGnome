@@ -80,7 +80,7 @@ Select your headphones from the **Devices** list to connect. Once connected, bat
 
 ## 🧪 Ideas and bugs
 
-In the [Discord](https://discord.com/invite/UyY4PY768V) community you can suggest an idea or report a problem.
+Open an issue here in github.
 
 ## 🩼 Known issues
 
