@@ -1,0 +1,62 @@
+/* MagicPods GNOME Shell Extension styles */
+
+/* ── Battery row ──────────────────────────────────────────────────────────── */
+
+.magicpods-battery-box {
+    spacing: 16px;
+    padding: 2px 0;
+}
+
+.magicpods-battery-slot {
+    spacing: 1px;
+    min-width: 40px;
+}
+
+.magicpods-battery-pct {
+    font-size: 0.95em;
+    font-weight: bold;
+}
+
+.magicpods-battery-charging {
+    color: #78c463;
+}
+
+.magicpods-battery-label {
+    font-size: 0.75em;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── ANC buttons ──────────────────────────────────────────────────────────── */
+
+.magicpods-anc-box {
+    spacing: 4px;
+    padding: 2px 0;
+}
+
+.magicpods-anc-row {
+    spacing: 4px;
+}
+
+.magicpods-anc-btn {
+    padding: 6px 4px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.85em;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.magicpods-anc-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.magicpods-anc-btn:active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.magicpods-anc-active {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-weight: bold;
+    border-color: rgba(255, 255, 255, 0.3);
+}
