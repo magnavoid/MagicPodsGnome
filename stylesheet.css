@@ -9,7 +9,7 @@
 
 .magicpods-battery-slot {
     spacing: 1px;
-    min-width: 40px;
+    min-width: 48px;
 }
 
 .magicpods-battery-pct {
@@ -24,6 +24,10 @@
 .magicpods-battery-label {
     font-size: 0.75em;
     color: rgba(255, 255, 255, 0.55);
+}
+
+.magicpods-battery-icon {
+    icon-size: 24px;
 }
 
 /* ── ANC buttons ──────────────────────────────────────────────────────────── */

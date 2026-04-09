@@ -26,16 +26,28 @@ function batteryLabel(slot) {
 
 // ── Battery row ─────────────────────────────────────────────────────────────
 
+function batteryIconName(level, charging) {
+    const rounded = Math.round(level / 10) * 10;
+    return `battery-level-${rounded}${charging ? '-charging' : ''}-symbolic`;
+}
+
 function makeBatteryBox(battery) {
     const box = new St.BoxLayout({style_class: 'magicpods-battery-box'});
 
     for (const slot of ['left', 'right', 'single', 'case']) {
         const b = battery[slot];
         if (!b || b.status === BATTERY_STATUS_NOT_AVAILABLE) continue;
+        if (slot === 'case' && b.battery === 0) continue;
 
         const slotBox = new St.BoxLayout({
             style_class: 'magicpods-battery-slot',
             vertical: true,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+
+        const icon = new St.Icon({
+            icon_name: batteryIconName(b.battery, b.charging),
+            style_class: 'magicpods-battery-icon',
             x_align: Clutter.ActorAlign.CENTER,
         });
 
@@ -49,11 +61,12 @@ function makeBatteryBox(battery) {
         });
 
         const lbl = new St.Label({
-            text: b.charging ? `${batteryLabel(slot)} ⚡` : batteryLabel(slot),
+            text: batteryLabel(slot),
             style_class: 'magicpods-battery-label',
             x_align: Clutter.ActorAlign.CENTER,
         });
 
+        slotBox.add_child(icon);
         slotBox.add_child(pct);
         slotBox.add_child(lbl);
         box.add_child(slotBox);
@@ -65,35 +78,25 @@ function makeBatteryBox(battery) {
 // ── ANC buttons ─────────────────────────────────────────────────────────────
 
 function makeAncBox(anc, address, backend) {
-    // Outer vertical box holds two horizontal rows of buttons
-    const outer = new St.BoxLayout({style_class: 'magicpods-anc-box', vertical: true});
+    const row = new St.BoxLayout({style_class: 'magicpods-anc-row'});
     const options = anc.options ?? 0;
 
-    const available = ANC_MODES.filter(m => options & m.bit);
-    const mid = Math.ceil(available.length / 2);
-    const rows = [available.slice(0, mid), available.slice(mid)];
-
-    for (const row of rows) {
-        if (row.length === 0) continue;
-        const rowBox = new St.BoxLayout({style_class: 'magicpods-anc-row'});
-        for (const mode of row) {
-            const btn = new St.Button({
-                label: mode.label,
-                style_class: anc.selected === mode.bit
-                    ? 'magicpods-anc-btn magicpods-anc-active'
-                    : 'magicpods-anc-btn',
-                x_expand: true,
-                can_focus: true,
-                reactive: !anc.readonly,
-            });
-            if (!anc.readonly)
-                btn.connect('clicked', () => backend.setAnc(address, mode.bit));
-            rowBox.add_child(btn);
-        }
-        outer.add_child(rowBox);
+    for (const mode of ANC_MODES.filter(m => options & m.bit)) {
+        const btn = new St.Button({
+            label: mode.label,
+            style_class: anc.selected === mode.bit
+                ? 'magicpods-anc-btn magicpods-anc-active'
+                : 'magicpods-anc-btn',
+            x_expand: true,
+            can_focus: true,
+            reactive: !anc.readonly,
+        });
+        if (!anc.readonly)
+            btn.connect('clicked', () => backend.setAnc(address, mode.bit));
+        row.add_child(btn);
     }
 
-    return outer;
+    return row;
 }
 
 // ── Main toggle ─────────────────────────────────────────────────────────────
@@ -119,14 +122,10 @@ class MagicPodsToggle extends QuickMenuToggle {
         this._statusItem = new PopupMenu.PopupMenuItem('', {reactive: false});
         this.menu.addMenuItem(this._statusItem);
 
-        // Battery
-        this._batterySep = new PopupMenu.PopupSeparatorMenuItem(
-            this._ext.gettext('Battery'));
-        this.menu.addMenuItem(this._batterySep);
-        this._batteryItem = new PopupMenu.PopupBaseMenuItem({
-            activate: false, can_focus: false,
-        });
-        this.menu.addMenuItem(this._batteryItem);
+        // Devices — dropdown submenu at the top
+        this._devicesItem = new PopupMenu.PopupSubMenuMenuItem(
+            this._ext.gettext('No device'));
+        this.menu.addMenuItem(this._devicesItem);
 
         // ANC
         this._ancSep = new PopupMenu.PopupSeparatorMenuItem(
@@ -137,12 +136,14 @@ class MagicPodsToggle extends QuickMenuToggle {
         });
         this.menu.addMenuItem(this._ancItem);
 
-        // Device list
-        this._devicesSep = new PopupMenu.PopupSeparatorMenuItem(
-            this._ext.gettext('Devices'));
-        this.menu.addMenuItem(this._devicesSep);
-        this._devicesSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._devicesSection);
+        // Battery
+        this._batterySep = new PopupMenu.PopupSeparatorMenuItem(
+            this._ext.gettext('Battery'));
+        this.menu.addMenuItem(this._batterySep);
+        this._batteryItem = new PopupMenu.PopupBaseMenuItem({
+            activate: false, can_focus: false,
+        });
+        this.menu.addMenuItem(this._batteryItem);
 
         // Low battery threshold
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(
@@ -204,10 +205,10 @@ class MagicPodsToggle extends QuickMenuToggle {
     }
 
     _setConnectedState(connected) {
-        this._batterySep.visible = connected;
-        this._batteryItem.visible = connected;
         this._ancSep.visible = connected;
         this._ancItem.visible = connected;
+        this._batterySep.visible = connected;
+        this._batteryItem.visible = connected;
     }
 
     _onStateChanged(state) {
@@ -246,15 +247,6 @@ class MagicPodsToggle extends QuickMenuToggle {
             ? this._ext.gettext('Connected')
             : this._ext.gettext('Disconnected');
 
-        // Battery
-        const hasBattery = info.capabilities?.battery != null;
-        this._batterySep.visible = hasBattery;
-        this._batteryItem.visible = hasBattery;
-        if (hasBattery) {
-            this._batteryItem.remove_all_children();
-            this._batteryItem.add_child(makeBatteryBox(info.capabilities.battery));
-        }
-
         // ANC
         const anc = info.capabilities?.anc;
         const hasAnc = anc != null && (anc.options ?? 0) > 0;
@@ -264,18 +256,31 @@ class MagicPodsToggle extends QuickMenuToggle {
             this._ancItem.remove_all_children();
             this._ancItem.add_child(makeAncBox(anc, info.address, this._backend));
         }
+
+        // Battery
+        const hasBattery = info.capabilities?.battery != null;
+        this._batterySep.visible = hasBattery;
+        this._batteryItem.visible = hasBattery;
+        if (hasBattery) {
+            this._batteryItem.remove_all_children();
+            this._batteryItem.add_child(makeBatteryBox(info.capabilities.battery));
+        }
     }
 
     // ── Device list ─────────────────────────────────────────────────────────
 
     _onDevicesChanged(headphones) {
-        this._devicesSection.removeAll();
+        this._devicesItem.menu.removeAll();
+
+        const connected = headphones.find(hp => hp.connected);
+        this._devicesItem.label.text = connected?.name
+            ?? this._ext.gettext('No device');
 
         if (headphones.length === 0) {
             const empty = new PopupMenu.PopupMenuItem(
                 this._ext.gettext('No supported devices found'),
                 {reactive: false});
-            this._devicesSection.addMenuItem(empty);
+            this._devicesItem.menu.addMenuItem(empty);
             return;
         }
 
@@ -287,8 +292,9 @@ class MagicPodsToggle extends QuickMenuToggle {
                     this._backend.disconnectDevice(hp.address);
                 else
                     this._backend.connectDevice(hp.address);
+                this._devicesItem.menu.toggle();
             });
-            this._devicesSection.addMenuItem(item);
+            this._devicesItem.menu.addMenuItem(item);
         }
     }
 });
