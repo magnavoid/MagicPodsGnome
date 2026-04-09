@@ -3,6 +3,6 @@
   "name": "MagicPods",
   "description": "Control AirPods, Beats, and Galaxy Buds from GNOME Shell",
   "version": 1,
-  "shell-version": ["45", "46", "47", "48", "49"],
-  "url": "https://github.com/steam3d/MagicPodsDecky"
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/magnavoid/MagicPodsGnome"
 }
