@@ -7,6 +7,7 @@ import Soup from 'gi://Soup';
 const WS_URL = 'ws://127.0.0.1:2020/';
 const RECONNECT_DELAY_MS = 2000;
 const INITIAL_CONNECT_DELAY_MS = 1500; // wait for binary to start
+const INFO_WATCHDOG_MS = 5000;         // restart binary if no info after GetAll
 const SUPPORTED_API_VERSION = 0;
 
 export const ConnectionState = Object.freeze({
@@ -33,6 +34,7 @@ export const Backend = GObject.registerClass({
         this._conn = null;
         this._cancellable = null;
         this._reconnectId = 0;
+        this._watchdogId = 0;
         this._enabled = false;
         this._apiReady = false;
     }
@@ -46,6 +48,7 @@ export const Backend = GObject.registerClass({
     disable() {
         this._enabled = false;
         this._clearReconnect();
+        this._clearWatchdog();
         this._wsDisconnect();
         this._stopProcess();
     }
@@ -107,6 +110,13 @@ export const Backend = GObject.registerClass({
         }
     }
 
+    _clearWatchdog() {
+        if (this._watchdogId) {
+            GLib.source_remove(this._watchdogId);
+            this._watchdogId = 0;
+        }
+    }
+
     _wsConnect() {
         this._wsDisconnect();
         this._apiReady = false;
@@ -161,11 +171,23 @@ export const Backend = GObject.registerClass({
             this._apiReady = true;
             this.emit('connection-state-changed', ConnectionState.CONNECTED);
             this._send({method: 'GetAll'});
+            this._watchdogId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, INFO_WATCHDOG_MS, () => {
+                this._watchdogId = 0;
+                if (!this._enabled) return GLib.SOURCE_REMOVE;
+                console.warn('[MagicPods] no info received after GetAll — restarting binary');
+                this._wsDisconnect();
+                this._stopProcess();
+                this._startProcess();
+                this._scheduleConnect(INITIAL_CONNECT_DELAY_MS);
+                return GLib.SOURCE_REMOVE;
+            });
             return;
         }
 
-        if (json.info !== undefined)
+        if (json.info !== undefined) {
+            this._clearWatchdog();
             this.emit('info-changed', JSON.stringify(json.info));
+        }
         if (json.headphones !== undefined)
             this.emit('devices-changed', JSON.stringify(json.headphones));
         if (json.defaultbluetooth !== undefined)
@@ -183,6 +205,7 @@ export const Backend = GObject.registerClass({
     }
 
     _wsDisconnect() {
+        this._clearWatchdog();
         if (this._cancellable) {
             this._cancellable.cancel();
             this._cancellable = null;
